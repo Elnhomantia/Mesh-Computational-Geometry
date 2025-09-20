@@ -28,6 +28,8 @@ public:
     std::vector<Point<float,3>> computeUniformLaplacian();
     void writeCurvatureOFF(const std::string& filename);
 
+    void split(faceIndex f, vertexIndex v);
+
 private:
     std::vector<Vertex<float, 3>> vertices;
     std::vector<Face<float, 3, 3>> faces;

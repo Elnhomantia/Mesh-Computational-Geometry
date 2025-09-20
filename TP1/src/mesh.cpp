@@ -118,3 +118,54 @@ void Mesh::writeCurvatureOFF(const std::string& filename)
     ofs.close();
     std::cout << "OFF with curvature coloring written to " << filename << std::endl;
 }
+
+void Mesh::split(faceIndex f, vertexIndex v)
+{
+    //v must be positionned in f
+    //ABC -> ABD + ADC + BCD
+    /*
+           C
+          / \
+         / | \
+        /  D  \
+       / /   \ \
+      A ------- B
+    */
+    Face<float, 3, 3> tr1;
+    Face<float, 3, 3> tr2;
+    Face<float, 3, 3> tr3;
+
+    tr1.vertexAt(0) = faces[f].vertexAt(0); //A
+    tr1.vertexAt(1) = faces[f].vertexAt(1); //B
+    tr1.vertexAt(2) = v; //D
+
+    tr2.vertexAt(0) = faces[f].vertexAt(0); //A
+    tr2.vertexAt(1) = v; //D
+    tr2.vertexAt(2) = faces[f].vertexAt(2); //C
+
+    tr3.vertexAt(0) = faces[f].vertexAt(1); //B
+    tr3.vertexAt(1) = faces[f].vertexAt(2); //C
+    tr3.vertexAt(2) = v; //D
+
+    //Add new triangles to the pool.
+    faces.push_back(tr2);
+    faceIndex tr2Index = faces.size() -1;
+    faces.push_back(tr3);
+    faceIndex tr3Index = faces.size() -1;
+
+    tr1.facesNeighboorIDAt(0) = tr3Index;//BCD
+    tr1.facesNeighboorIDAt(1) = tr2Index;//ADC
+    tr1.facesNeighboorIDAt(2) = faces[f].facesNeighboorIDAt(2);//ABC neighbbor opposed to C
+
+    tr2.facesNeighboorIDAt(0) = tr3Index;//BCD
+    tr2.facesNeighboorIDAt(1) = faces[f].facesNeighboorIDAt(1);//ABC neighbbor opposed to B
+    tr2.facesNeighboorIDAt(2) = f;//ABD
+
+    tr3.facesNeighboorIDAt(0) = tr2Index;//ADC
+    tr3.facesNeighboorIDAt(1) = f;//ABD
+    tr3.facesNeighboorIDAt(2) = faces[f].facesNeighboorIDAt(0);//ABC neighbbor opposed to 1
+
+    //replace source triangle (Must be at the end, we still use neighboor from it)
+    //can't pop an element from vector, it will change indices making the whole mesh wrong.
+    faces[f] = tr1;
+}
