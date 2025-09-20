@@ -7,12 +7,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(INCLUDES_FILES
     include/point.h
-    include/triangle.h
+    include/face.h
     include/vertex.h
+    include/mesh.h
 )
 
 set(SOURCES_FILES
-    OFFparser.cpp    
+    src/OFFparser.cpp
+    src/meshChecker.cpp
+    src/mesh.cpp
     main.cpp
 )
 

@@ -6,15 +6,13 @@
 #include <cassert>
 
 template<typename T>
-concept Coordinate_concept = requires(T a, T b) {
+concept Coordinate_concept = requires(T a, T b) 
+{
     { a + b } -> std::convertible_to<T>;
     { a - b } -> std::convertible_to<T>;
     { a * b } -> std::convertible_to<T>;
     { a / b } -> std::convertible_to<T>;
 };
-
-template<unsigned int D>
-concept PositiveDimension = (D > 0);
 
 enum class Axis
 {
@@ -30,7 +28,7 @@ class Point
 public:
     T& operator[](Axis axis)
     {
-        assert(axis < DIMENTION);
+        assert((int)axis < DIMENTION);
         return this->coordinates[axis];
     }
         T& operator[](unsigned int axis)
