@@ -10,12 +10,16 @@ set(INCLUDES_FILES
     include/face.h
     include/vertex.h
     include/mesh.h
+    include/circulatorOnFaces.h
+    include/circulatorOnVertices.h
 )
 
 set(SOURCES_FILES
     src/OFFparser.cpp
     src/meshChecker.cpp
     src/mesh.cpp
+    src/circulatorOnFaces.cpp
+    src/circulatorOnVertices.cpp
     main.cpp
 )
 

@@ -13,6 +13,10 @@ public:
     {
         return position;
     }
+    const Point<T, DIMENTION> & getPosition() const
+    {
+        return position;
+    }
     faceIndex & faceNeighboor()
     {
         return _faceNeighboor;
