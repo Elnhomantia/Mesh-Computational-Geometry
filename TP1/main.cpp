@@ -11,7 +11,8 @@ int main()
     Mesh m;
     m.loadOffFile("queen.off");
     m.check();
-    m.writeCurvatureOFF("curvature.off");
+    m.writeTemperatureOFF("temperature/iteration", 10);
+    //m.writeCotangentCurvatureOFF("contangentCurvature.off");
 
     return EXIT_SUCCESS;
 }

@@ -82,35 +82,59 @@ public:
         return *this;
     }
 
-    T norm() const 
+    T norm() const
     {
         T sum = T(0);
         for(unsigned int i=0; i<DIMENTION; ++i) sum += coordinates[i]*coordinates[i];
         return std::sqrt(sum);
     }
 
-    Point<T,DIMENTION> operator+(const Point<T,DIMENTION>& rhs) 
+    Point<T,DIMENTION> operator+(const Point<T,DIMENTION>& rhs) const
     {
-        *this += rhs;
-        return *this;
+        Point<T, DIMENTION> res = *this;
+        res += rhs;
+        return res;
     }
 
-    Point<T,DIMENTION> operator-(const Point<T,DIMENTION>& rhs) 
+    Point<T,DIMENTION> operator-(const Point<T,DIMENTION>& rhs) const
     {
-        *this -= rhs;
-        return *this;
+        Point<T, DIMENTION> res = *this;
+        res -= rhs;
+        return res;
     }
 
-    Point<T,DIMENTION> operator*(T scalar) 
+    Point<T,DIMENTION> operator*(const T scalar) const
     {
-        *this *= scalar;
-        return *this;
+        Point<T,DIMENTION> res;
+        res *= scalar;
+        return res;
     }
 
-    Point<T,DIMENTION> operator/(T scalar) 
+    Point<T,DIMENTION> operator/(const T scalar) const
     {
-        *this /= scalar;
-        return *this;
+        Point<T,DIMENTION> res;
+        res /= scalar;
+        return res;
+    }
+
+    static Point<T, DIMENTION> crossProduct(const Point<T,DIMENTION> & lhs, const Point<T,DIMENTION> & rhs)
+    requires (DIMENTION == 3) //for now, don't want to generalize, bit too much to read
+    {
+        return Point<T,DIMENTION>(
+            lhs[1]*rhs[2] - lhs[2]*rhs[1],
+            lhs[2]*rhs[0] - lhs[0]*rhs[2],
+            lhs[0]*rhs[1] - lhs[1]*rhs[0]
+        );
+    }
+
+    static T dotProduct(const Point<T,DIMENTION> & lhs, const Point<T,DIMENTION> & rhs)
+    {
+        T result = T(0);
+        for (unsigned int i = 0; i < DIMENTION; ++i) 
+        {
+            result += lhs[i] * rhs[i];
+        }
+        return result;
     }
 
 private:

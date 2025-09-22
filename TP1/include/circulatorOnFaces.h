@@ -21,6 +21,8 @@ class CirculatorOnFaces
 
     bool isValid() const;
 
+    inline faceIndex getCurrentFaceIndex() { return currentFace; }
+
 private:
     Mesh& mesh;
     vertexIndex vIndex;

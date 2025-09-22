@@ -10,6 +10,8 @@
 
 #include <circulatorOnFaces.h>
 #include <circulatorOnVertices.h>
+#include <vector>
+#include <ctime>
 
 void Mesh::loadOffFile(const std::string & file)
 {
@@ -32,94 +34,147 @@ CirculatorOnVertices Mesh::adjacent_vertices(vertexIndex vi)
     return CirculatorOnVertices(*this, vi, f);
 }
 
-std::vector<Point<float,3>> Mesh::computeUniformLaplacian()
+static inline double cotangent(const Point<double,3>& u, const Point<double,3>& v, const Point<double,3>& w)
 {
-    std::vector<Point<float,3>> laplacian(vertices.size());
+    Point<double,3> wu = u - w;
+    Point<double,3> wv = v - w;
 
-    for (vertexIndex vi = 0; vi < vertices.size(); ++vi)
+    double dot = Point<double,3>::dotProduct(wu, wv);
+    Point<double,3> cross = Point<double,3>::crossProduct(wu, wv);
+    double crossNorm = cross.norm(); //orientation?
+
+    return dot / crossNorm;
+}
+
+float Mesh::area(faceIndex f)
+{
+    auto & face = faces[f];
+
+    Point<float,3> p0 = vertices[face.vertexAt(0)].getPosition();
+    Point<float,3> p1 = vertices[face.vertexAt(1)].getPosition();
+    Point<float,3> p2 = vertices[face.vertexAt(2)].getPosition();
+
+    Point<float,3> u = p1 - p0;
+    Point<float,3> v = p2 - p0;
+
+    return 0.5f * Point<float,3>::crossProduct(u, v).norm();
+}
+
+float Mesh::computeCotangentLaplacian(vertexIndex v, const std::function<float(vertexIndex)>& projection)
+{
+    double acc = 0.0f;
+    double area = 0.0f;
+
+    for(auto cf = incidentFaces(v); cf.isValid(); ++cf)
     {
-        const Vertex<float,3>& v = vertices[vi];
-        Point<float,3> sum; // defaults to (0,0,0)
-        int degree = 0;
+        area += this->area(cf.getCurrentFaceIndex()) / 3.0f; //cumulate a thrid of area
 
-        for (auto circ = adjacent_vertices(vi); circ.isValid(); ++circ) {
-            const Vertex<float,3>& neighbor = *circ;
-            sum += neighbor.getPosition();
-            ++degree;
-        }
+        //find local index of v in a
+        vertexIndex lav = (*cf).vertexAt(0) == v ? 0 : ((*cf).vertexAt(1) == v ? 1 : 2);
 
-        if (degree > 0)
-            laplacian[vi] = (sum / float(degree)) - v.getPosition();
-        else
-            laplacian[vi] = Point<float,3>(0.0f,0.0f,0.0f); // isolated vertex
+        Point<double, 3> i(
+            static_cast<double>(vertices[v].getPosition()[0]),
+            static_cast<double>(vertices[v].getPosition()[1]),
+            static_cast<double>(vertices[v].getPosition()[2])
+        );
+        Point<double, 3> j(
+            static_cast<double>(vertices[(*cf).vertexAt((lav + 2) % 3)].getPosition()[0]),
+            static_cast<double>(vertices[(*cf).vertexAt((lav + 2) % 3)].getPosition()[1]),
+            static_cast<double>(vertices[(*cf).vertexAt((lav + 2) % 3)].getPosition()[2])
+        );
+        Point<double, 3> aij(
+            static_cast<double>(vertices[(*cf).vertexAt((lav + 1) % 3)].getPosition()[0]),
+            static_cast<double>(vertices[(*cf).vertexAt((lav + 1) % 3)].getPosition()[1]),
+            static_cast<double>(vertices[(*cf).vertexAt((lav + 1) % 3)].getPosition()[2])
+        );
+
+        double alpha = cotangent(i, j, aij);
+
+        auto & neighboorFace = faces[(*cf).facesNeighboorIDAt((lav +1) %3)];
+        vertexIndex lbv = neighboorFace.vertexAt(0) == v ? 0 : (neighboorFace.vertexAt(1) == v ? 1 : 2);
+
+        Point<double, 3> bij(
+            static_cast<double>(vertices[neighboorFace.vertexAt((lbv + 2) % 3)].getPosition()[0]),
+            static_cast<double>(vertices[neighboorFace.vertexAt((lbv + 2) % 3)].getPosition()[1]),
+            static_cast<double>(vertices[neighboorFace.vertexAt((lbv + 2) % 3)].getPosition()[2])
+        );
+
+        double beta = cotangent(i, j, bij);
+
+        acc += (alpha + beta) * (projection(v) - projection((*cf).vertexAt((lav + 2) % 3)));
     }
-
-    return laplacian;
+    //std::cout << area <<  std::endl;
+    return 1.0f / (2.0f * static_cast<float>(area)) * static_cast<float>(acc);
 }
 
-void Mesh::writeCurvatureOFF(const std::string& filename)
+void Mesh::writeCotangentCurvatureOFF(const std::string& filename)
 {
-    // Step 1: compute Laplacian vectors
-    std::vector<Point<float,3>> lap = computeUniformLaplacian();
-
-    // Step 2: compute curvature magnitude
-    std::vector<float> curvature(vertices.size());
-    float minC = 1e30f, maxC = -1e30f;
-    for (size_t i = 0; i < vertices.size(); ++i) {
-        curvature[i] = lap[i].norm();
-        minC = std::min(minC, curvature[i]);
-        maxC = std::max(maxC, curvature[i]);
-    }
-
-    // Step 3: open OFF file with color
-    std::ofstream ofs(filename);
-    ofs << "COFF\n";
-    ofs << vertices.size() << " " << faces.size() << " 0\n";
-
-    // Step 4: write vertices with RGB based on curvature
-    for (size_t i = 0; i < vertices.size(); ++i) {
-        const auto& p = vertices[i].getPosition();
-
-        // normalize curvature to [0,1]
-        float c = (curvature[i] - minC) / (maxC - minC);
-
-        // map to HSV color (blue low curvature, red high)
-        float H = (1.0f - c) * 0.66f; // hue [0.66=blue -> 0=red]
-        float S = 1.0f;
-        float V = 1.0f;
-
-        // HSV -> RGB conversion
-        float r,g,b;
-        int iH = int(H*6);
-        float f = H*6 - iH;
-        float pV = V*(1-S);
-        float q = V*(1-f*S);
-        float t = V*(1-(1-f)*S);
-
-        switch(iH % 6){
-            case 0: r=V; g=t; b=pV; break;
-            case 1: r=q; g=V; b=pV; break;
-            case 2: r=pV; g=V; b=t; break;
-            case 3: r=pV; g=q; b=V; break;
-            case 4: r=t; g=pV; b=V; break;
-            case 5: r=V; g=pV; b=q; break;
-        }
-
-        ofs << p[0] << " " << p[1] << " " << p[2] << " "
-            << int(r*255) << " " << int(g*255) << " " << int(b*255) << " 255\n";
-    }
-
-    // Step 5: write faces
-    for (size_t i = 0; i < faces.size(); ++i) {
-        auto& f = faces[i];
-        ofs << 3 << " " << f.vertexAt(0) << " " << f.vertexAt(1) << " " << f.vertexAt(2) << "\n";
-    }
-
-    ofs.close();
-    std::cout << "OFF with curvature coloring written to " << filename << std::endl;
+    
 }
 
-void Mesh::split(faceIndex f, vertexIndex v)
+void Mesh::writeTemperatureOFF(const std::string& filename, unsigned int iteration)
+{
+    std::vector<float> temperature(vertices.size(), 0.0f);
+    std::srand(static_cast<unsigned int>(std::time(nullptr)));
+    size_t seedVertex = std::rand() % vertices.size();
+    temperature[seedVertex] = 1.0f;
+    std::vector<float> temp(vertices.size());
+    for(unsigned int i = 0; i < iteration; ++i)
+    {
+        for(vertexIndex vertex = 0; vertex < vertices.size(); ++vertex)
+        {
+            float dt = 0.00000005f;
+            temp[vertex] = temperature[vertex] + dt * computeCotangentLaplacian(vertex, [&temperature](vertexIndex vertex)
+            { return temperature[vertex]; });
+            assert(!std::isnan(temperature[vertex]));
+        }
+        //write COFF
+        //normalisation
+        float tmin = *std::min_element(temperature.begin(), temperature.end());
+        float tmax = *std::max_element(temperature.begin(), temperature.end());
+        //Must not be 0
+        float range = (tmax - tmin > 1e-12f) ? (tmax - tmin) : 1.0f;
+
+        //COFF
+        std::ostringstream fname;
+        fname << filename << "_" << i << ".off";
+        std::ofstream ofs(fname.str());
+        if (!ofs) throw std::runtime_error("Cannot open file " + fname.str());
+
+        ofs << "COFF\n";
+        ofs << vertices.size() << " " << faces.size() << " 0\n";
+
+        for (size_t i = 0; i < vertices.size(); ++i)
+        {
+            const auto& p = vertices[i].getPosition();
+            float t = (temperature[i] - tmin) / range;
+            //std::cout << t << tmin << range << std::endl;
+
+            int r = static_cast<int>(255 * t);
+            int g = 0;
+            int b = static_cast<int>(255 * (1.0f - t));
+
+            ofs << p[0] << " " << p[1] << " " << p[2] << " "
+                << r << " " << g << " " << b << " 255\n";
+        }
+
+        for (auto& f : faces)
+        {
+            ofs << 3 << " " << f.vertexAt(0) << " "
+                       << f.vertexAt(1) << " "
+                       << f.vertexAt(2) << "\n";
+        }
+
+        ofs.close();
+        std::cout << "Iteration " << i << " -> " << fname.str() << " written." << std::endl;
+
+
+        temperature = temp;
+    }
+}
+
+
+void Mesh::faceSplit(faceIndex f, vertexIndex v)
 {
     //v must be positionned in f
     //ABC -> ABD + ADC + BCD
@@ -168,4 +223,22 @@ void Mesh::split(faceIndex f, vertexIndex v)
     //replace source triangle (Must be at the end, we still use neighboor from it)
     //can't pop an element from vector, it will change indices making the whole mesh wrong.
     faces[f] = tr1;
+}
+
+void Mesh::edgeSplit(faceIndex f, vertexIndex v)
+{
+
+}
+
+void Mesh::flip(faceIndex fl, faceIndex fr)
+{
+/*
+    A             A 
+   / \           /|\
+  /   \         / | \
+ B-----C   ->  B  |  C
+  \   /         \ | /
+   \ /           \|/
+    D             D
+*/
 }

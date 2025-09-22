@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <functional>
 
 #include <vertex.h>
 #include <face.h>
@@ -25,10 +26,17 @@ public:
     CirculatorOnFaces incidentFaces(vertexIndex vi);
     CirculatorOnVertices adjacent_vertices(vertexIndex vi);
 
-    std::vector<Point<float,3>> computeUniformLaplacian();
-    void writeCurvatureOFF(const std::string& filename);
+    float area(faceIndex f);
 
-    void split(faceIndex f, vertexIndex v);
+    float computeCotangentLaplacian(vertexIndex v, const std::function<float(vertexIndex)>& projection);
+
+    void writeCotangentCurvatureOFF(const std::string& filename);
+    void writeTemperatureOFF(const std::string& filename, unsigned int iteration);
+
+    void faceSplit(faceIndex f, vertexIndex v);
+    void edgeSplit(faceIndex f, vertexIndex v);
+
+    void flip(faceIndex fl, faceIndex fr);
 
 private:
     std::vector<Vertex<float, 3>> vertices;
