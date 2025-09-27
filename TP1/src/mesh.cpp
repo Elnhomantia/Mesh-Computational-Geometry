@@ -101,6 +101,8 @@ float Mesh::computeCotangentLaplacian(vertexIndex v, const std::function<float(v
 
         double beta = cotangent(i, j, bij);
 
+        //std::cout << alpha << " " << beta << std::endl;
+
         acc += (alpha + beta) * (projection(v) - projection((*cf).vertexAt((lav + 2) % 3)));
     }
     //std::cout << area <<  std::endl;
@@ -123,17 +125,17 @@ void Mesh::writeTemperatureOFF(const std::string& filename, unsigned int iterati
     {
         for(vertexIndex vertex = 0; vertex < vertices.size(); ++vertex)
         {
-            float dt = 0.00000005f;
+            float dt = 0.1f;
             temp[vertex] = temperature[vertex] + dt * computeCotangentLaplacian(vertex, [&temperature](vertexIndex vertex)
             { return temperature[vertex]; });
-            assert(!std::isnan(temperature[vertex]));
+            // something degenerate the temperature...
+            // assert(!std::isnan(temperature[vertex]));
         }
         //write COFF
         //normalisation
-        float tmin = *std::min_element(temperature.begin(), temperature.end());
-        float tmax = *std::max_element(temperature.begin(), temperature.end());
-        //Must not be 0
-        float range = (tmax - tmin > 1e-12f) ? (tmax - tmin) : 1.0f;
+        float tmin = 0.0f;
+        float tmax = 1.0f;
+        float range = tmax - tmin;
 
         //COFF
         std::ostringstream fname;
@@ -144,10 +146,10 @@ void Mesh::writeTemperatureOFF(const std::string& filename, unsigned int iterati
         ofs << "COFF\n";
         ofs << vertices.size() << " " << faces.size() << " 0\n";
 
-        for (size_t i = 0; i < vertices.size(); ++i)
+        for (vertexIndex vertex = 0; vertex < vertices.size(); ++vertex)
         {
-            const auto& p = vertices[i].getPosition();
-            float t = (temperature[i] - tmin) / range;
+            const auto& p = vertices[vertex].getPosition();
+            float t = temperature[vertex] / range;
             //std::cout << t << tmin << range << std::endl;
 
             int r = static_cast<int>(255 * t);
@@ -171,6 +173,86 @@ void Mesh::writeTemperatureOFF(const std::string& filename, unsigned int iterati
 
         temperature = temp;
     }
+}
+
+static void HSVtoRGB(float h, float s, float v, int& r, int& g, int& b)
+{
+    float c = v * s;
+    float hh = h / 60.0f;
+    float x = c * (1 - fabs(fmod(hh, 2.0f) - 1));
+    float m = v - c;
+
+    float r_, g_, b_;
+    if(hh >= 0 && hh < 1) { r_=c; g_=x; b_=0; }
+    else if(hh < 2) { r_=x; g_=c; b_=0; }
+    else if(hh < 3) { r_=0; g_=c; b_=x; }
+    else if(hh < 4) { r_=0; g_=x; b_=c; }
+    else if(hh < 5) { r_=x; g_=0; b_=c; }
+    else { r_=c; g_=0; b_=x; }
+
+    r = static_cast<int>((r_ + m) * 255);
+    g = static_cast<int>((g_ + m) * 255);
+    b = static_cast<int>((b_ + m) * 255);
+}
+
+void Mesh::writeCurvatureOFF(const std::string& filename)
+{
+    std::ofstream out(filename);
+    if(!out) {
+        std::cerr << "Error: cannot open " << filename << std::endl;
+        return;
+    }
+    out << "COFF\n";
+    out << vertices.size() << " " << faces.size() << " 0\n";
+
+    // Step 1: compute curvature for all vertices
+    std::vector<float> curvature(vertices.size());
+    float minH = std::numeric_limits<float>::max();
+    float maxH = std::numeric_limits<float>::lowest();
+
+    for(vertexIndex v = 0; v < vertices.size(); ++v)
+    {
+        float X = computeCotangentLaplacian(v, [&](vertexIndex vi)
+        { return vertices[vi].getPosition()[0]; });
+        float Y = computeCotangentLaplacian(v, [&](vertexIndex vi)
+        { return vertices[vi].getPosition()[1]; });
+        float Z = computeCotangentLaplacian(v, [&](vertexIndex vi)
+        { return vertices[vi].getPosition()[2]; });
+
+        Point<float, 3> Ds(X, Y, Z);
+        float H = Ds.norm() / 2.0f;   // mean curvature
+        curvature[v] = H;
+
+        minH = std::min(minH, H);
+        maxH = std::max(maxH, H);
+    }
+
+    for(vertexIndex v = 0; v < vertices.size(); ++v)
+    {
+        float H = curvature[v];
+
+        float t = (H - minH) / (maxH - minH + 1e-8f);
+
+        float hue = (1.0f - t) * 240.0f;
+        float sat = 1.0f;
+        float val = 1.0f;
+        int r, g, b;
+        HSVtoRGB(hue, sat, val, r, g, b);
+
+        const auto& pos = vertices[v].getPosition();
+        out << pos[0] << " " << pos[1] << " " << pos[2] << " "
+            << r << " " << g << " " << b << " 255\n";
+    }
+
+    for (auto& f : faces)
+    {
+        out << 3 << " " << f.vertexAt(0) << " "
+                   << f.vertexAt(1) << " "
+                   << f.vertexAt(2) << "\n";
+    }
+
+    out.close();
+    std::cout << "Curvature " << filename << " written." << std::endl;
 }
 
 

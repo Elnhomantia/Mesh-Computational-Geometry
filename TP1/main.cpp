@@ -11,8 +11,9 @@ int main()
     Mesh m;
     m.loadOffFile("queen.off");
     m.check();
-    m.writeTemperatureOFF("temperature/iteration", 10);
-    //m.writeCotangentCurvatureOFF("contangentCurvature.off");
+    // temperature directory need to exist in build directory
+    m.writeTemperatureOFF("temperature/iteration", 20);
+    m.writeCurvatureOFF("curvature.off");
 
     return EXIT_SUCCESS;
 }

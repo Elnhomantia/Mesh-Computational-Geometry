@@ -32,6 +32,7 @@ public:
 
     void writeCotangentCurvatureOFF(const std::string& filename);
     void writeTemperatureOFF(const std::string& filename, unsigned int iteration);
+    void writeCurvatureOFF(const std::string& filename);
 
     void faceSplit(faceIndex f, vertexIndex v);
     void edgeSplit(faceIndex f, vertexIndex v);

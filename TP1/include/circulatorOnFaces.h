@@ -28,7 +28,6 @@ private:
     vertexIndex vIndex;
     faceIndex currentFace;
     faceIndex startFaceIndex;
-    bool firstIteration;
 
     faceIndex nextIncidentFace();
 };

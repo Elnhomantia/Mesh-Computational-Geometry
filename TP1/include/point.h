@@ -105,14 +105,14 @@ public:
 
     Point<T,DIMENTION> operator*(const T scalar) const
     {
-        Point<T,DIMENTION> res;
+        Point<T,DIMENTION> res = *this;
         res *= scalar;
         return res;
     }
 
     Point<T,DIMENTION> operator/(const T scalar) const
     {
-        Point<T,DIMENTION> res;
+        Point<T,DIMENTION> res = *this;
         res /= scalar;
         return res;
     }

@@ -1,7 +1,7 @@
 #include <circulatorOnFaces.h>
 
 CirculatorOnFaces::CirculatorOnFaces(Mesh& m, vertexIndex v, faceIndex startFace)
-        : mesh(m), vIndex(v), currentFace(startFace), startFaceIndex(startFace), firstIteration(true) {}
+        : mesh(m), vIndex(v), currentFace(startFace), startFaceIndex(startFace) {}
 
     // Accès à la face courante
     Face<float, 3, 3>& CirculatorOnFaces::operator*() 
@@ -15,12 +15,10 @@ CirculatorOnFaces::CirculatorOnFaces(Mesh& m, vertexIndex v, faceIndex startFace
         // Trouver le prochain voisin
         currentFace = nextIncidentFace();
         // Détection de boucle (retour au départ)
-        if (currentFace == startFaceIndex) {
-            if (!firstIteration) {
-                currentFace = INVALID_FACE_INDEX; // fin de circulation
-            }
+        if (currentFace == startFaceIndex) 
+        {
+            currentFace = INVALID_FACE_INDEX; // fin de circulation
         }
-        firstIteration = false;
         return *this;
     }
 
