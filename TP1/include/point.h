@@ -35,6 +35,8 @@ public:
     requires (sizeof...(Args) == DIMENTION) && ((std::convertible_to<Args,T> && ...))
     Point(Args... args) : coordinates{T(args)...} {}
 
+    Point(const Point<T, DIMENTION> & p) = default;
+
     T& operator[](Axis axis)
     {
         assert((int)axis < DIMENTION);

@@ -10,13 +10,10 @@ class CirculatorOnFaces
     public:
     CirculatorOnFaces(Mesh& m, vertexIndex v, faceIndex startFace);
 
-    // Accès à la face courante
     Face<float, 3, 3>& operator*();
 
-    // Passer à la face suivante autour du sommet
     CirculatorOnFaces& operator++();
 
-    // Vérifier validité
     bool operator!=(const CirculatorOnFaces& other) const;
 
     bool isValid() const;

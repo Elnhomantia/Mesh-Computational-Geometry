@@ -9,6 +9,7 @@ template<typename T, unsigned int DIMENTION>
 class Vertex
 {
 public:
+    Vertex() = default;
     Point<T, DIMENTION> & getPosition()
     {
         return position;

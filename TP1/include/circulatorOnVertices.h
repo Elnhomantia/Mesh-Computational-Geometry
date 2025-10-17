@@ -15,6 +15,9 @@ public:
 
     CirculatorOnVertices& operator++();
 
+    inline faceIndex getFaceIndex() { return currentFace; }
+    inline vertexIndex getVertexIndex() { return currentVertex; }
+
     bool isValid() const;
 
 private:
