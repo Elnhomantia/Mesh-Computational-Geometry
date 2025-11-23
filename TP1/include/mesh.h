@@ -61,6 +61,9 @@ public:
     bool isFictitious(Face<float, 3, 3> &f);
     static bool isFictitious(Point<float, 3> &p);
 
+    float localSurfaceAround(vertexIndex v);
+    void mergeCloseVertices(float threshold, float surfaceThreshold = 0.05f);
+
 private:
     std::vector<Vertex<float, 3>> vertices;
     std::vector<Face<float, 3, 3>> faces;

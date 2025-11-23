@@ -865,3 +865,112 @@ void Mesh::insertPoint(Point<float, 3> p)
     //flip other super faces 
     ///@todo
 }
+
+float Mesh::localSurfaceAround(vertexIndex v)
+{
+    float total = 0.0f;
+    for (size_t fi = 0; fi < faces.size(); ++fi)
+    {
+        for (int k = 0; k < 3; ++k)
+        {
+            if (faces[fi].vertexAt(k) == v)
+            {
+                total += area(static_cast<faceIndex>(fi));
+                break;
+            }
+        }
+    }
+    return total;
+}
+
+void Mesh::mergeCloseVertices(float threshold, float surfaceThreshold)
+{
+    float thresholdSq = threshold * threshold;
+    const size_t n = vertices.size();
+    std::vector<int> mapping(n);
+    for (size_t i = 0; i < n; ++i)
+        mapping[i] = static_cast<int>(i);
+
+    for (size_t i = 0; i < n; ++i)
+    {
+        if (mapping[i] != static_cast<int>(i)) continue;
+        Point<float, 3> &pi = vertices[i].getPosition();
+
+        for (size_t j = i + 1; j < n; ++j)
+        {
+            if (mapping[j] != static_cast<int>(j)) continue;
+            Point<float, 3> &pj = vertices[j].getPosition();
+
+            float dx = pi[0] - pj[0];
+            float dy = pi[1] - pj[1];
+            float dz = pi[2] - pj[2];
+            float distSq = dx*dx + dy*dy + dz*dz;
+
+            if (distSq < thresholdSq)
+            {
+                float sBefore = 0.0f;
+                for (size_t fi = 0; fi < faces.size(); ++fi)
+                {
+                    for (int k = 0; k < 3; ++k)
+                        if (faces[fi].vertexAt(k) == i || faces[fi].vertexAt(k) == j)
+                        {
+                            sBefore += area(static_cast<faceIndex>(fi));
+                            break;
+                        }
+                }
+
+                mapping[j] = static_cast<int>(i);
+
+                float sAfter = 0.0f;
+                for (size_t fi = 0; fi < faces.size(); ++fi)
+                {
+                    for (int k = 0; k < 3; ++k)
+                        if (faces[fi].vertexAt(k) == i || faces[fi].vertexAt(k) == j)
+                        {
+                            sAfter += area(static_cast<faceIndex>(fi));
+                            break;
+                        }
+                }
+
+                float diff = 0.0f;
+                if (sBefore > 1e-12f)
+                    diff = std::abs(sAfter - sBefore) / sBefore;
+
+                if (diff > surfaceThreshold)
+                {
+                    mapping[j] = static_cast<int>(j); // Nope don't merge, lose too much surface
+                    std::cout << "[mergeCloseVertices][WARN] (" << i << "," << j
+                              << ") Local surface change = "
+                              << diff * 100.0f << "%\n"
+                              << "Did not merge" << std::endl;
+                }
+            }
+        }
+    }
+
+    for (auto &f : faces)
+        for (int k = 0; k < 3; ++k)
+            f.vertexAt(k) = mapping[f.vertexAt(k)];
+
+    std::vector<Vertex<float, 3>> newVertices;
+    newVertices.reserve(vertices.size());
+    std::unordered_map<int, int> newIndex;
+
+    for (size_t i = 0; i < n; ++i)
+        if (mapping[i] == static_cast<int>(i))
+        {
+            int ni = static_cast<int>(newVertices.size());
+            newVertices.push_back(vertices[i]);
+            newIndex[i] = ni;
+        }
+
+    for (auto &f : faces)
+        for (int k = 0; k < 3; ++k)
+            f.vertexAt(k) = newIndex[mapping[f.vertexAt(k)]];
+
+    vertices = std::move(newVertices);
+    std::cout << "[mergeCloseVertices] Merge done. Now at : "
+              << vertices.size() << " vertices." << std::endl;
+}
+
+
